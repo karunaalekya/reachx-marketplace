@@ -1,0 +1,23 @@
+# Maven
+target/
+*.class
+
+# Env / secrets
+.env
+*.env.local
+
+# IDE
+.idea/
+*.iml
+.vscode/
+!.vscode/extensions.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Docker
+docker-compose.override.yml

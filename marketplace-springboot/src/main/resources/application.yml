@@ -1,0 +1,185 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: marketplace-backend
+
+  mail:
+    host: ${SMTP_HOST:smtp.gmail.com}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:placeholder@example.com}
+    password: ${SMTP_PASSWORD:placeholder_password}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:marketplace}
+    username: ${DB_USER:marketplace_user}
+    password: ${DB_PASSWORD:changeme}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      # Defaults (10) are a reasonable starting point for moderate traffic, but were previously
+      # entirely unset - meaning "whatever HikariCP's built-in default happens to be" rather than
+      # a deliberate choice. Made explicit so it's a conscious decision to tune later, not an
+      # accident to discover under load. These numbers assume a single app instance; multiply
+      # by instance count when scaling horizontally, and check Postgres's own max_connections
+      # isn't exceeded across all instances combined.
+      maximum-pool-size: ${DB_POOL_MAX:10}
+      minimum-idle: ${DB_POOL_MIN_IDLE:5}
+      connection-timeout: 30000        # ms to wait for a connection before failing the request
+      idle-timeout: 600000             # 10 min - close idle connections beyond minimum-idle
+      max-lifetime: 1800000            # 30 min - recycle connections periodically (avoids stale/killed-by-DB connections)
+      leak-detection-threshold: 60000  # warn if a connection is held > 60s without being returned - usually signals a missing transaction boundary
+
+  jpa:
+    hibernate:
+      ddl-auto: validate   # Flyway owns schema changes, not Hibernate
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 600000   # 10 min default TTL for cached catalog reads
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BROKER:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      acks: all
+      retries: 3
+    consumer:
+      group-id: marketplace-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.marketplace.*"
+      auto-offset-reset: earliest
+
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000}
+
+app:
+  frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:5173}
+
+orders:
+  abandoned-timeout-minutes: ${ABANDONED_ORDER_TIMEOUT_MINUTES:30}
+
+# Flat per-vendor shipping fee at checkout, waived once that vendor's own subtotal reaches the
+# free-shipping threshold - see ShippingCostCalculator for why this isn't a live carrier rate.
+# Values are parsed as BigDecimal from these Strings explicitly (not via Spring's @Value-to-
+# BigDecimal binding) - see that class's constructor comment.
+shipping:
+  flat-rate-per-vendor: ${SHIPPING_FLAT_RATE_PER_VENDOR:49.00}
+  free-shipping-threshold: ${SHIPPING_FREE_THRESHOLD:499.00}
+
+mail:
+  from: ${MAIL_FROM:no-reply@marketplace.local}
+
+jwt:
+  secret: ${JWT_SECRET:CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_IN_PRODUCTION_ENV_FILE}
+  expiration-ms: 86400000   # 24h
+
+razorpay:
+  key-id: ${RAZORPAY_KEY_ID:rzp_test_placeholder}
+  key-secret: ${RAZORPAY_KEY_SECRET:placeholder_secret}
+  webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:placeholder_webhook_secret}
+
+cashfree:
+  client-id: ${CASHFREE_CLIENT_ID:placeholder_client_id}
+  client-secret: ${CASHFREE_CLIENT_SECRET:placeholder_client_secret}
+  webhook-secret: ${CASHFREE_WEBHOOK_SECRET:placeholder_webhook_secret}
+  base-url: ${CASHFREE_BASE_URL:https://sandbox.cashfree.com/pg}
+
+payu:
+  merchant-key: ${PAYU_MERCHANT_KEY:placeholder_key}
+  salt: ${PAYU_SALT:placeholder_salt}
+
+# Product image storage - S3-API-compatible, so this same block configures AWS S3, Cloudinary's
+# S3-compatible endpoint, or Supabase Storage; only the values change, not the code.
+# Leave storage.endpoint blank for real AWS S3. Set it (and expect forcePathStyle behavior in
+# S3StorageService) for Cloudinary/Supabase/any other non-AWS S3-compatible provider.
+storage:
+  endpoint: ${STORAGE_ENDPOINT:}
+  region: ${STORAGE_REGION:ap-south-1}
+  bucket: ${STORAGE_BUCKET:marketplace-product-images}
+  access-key: ${STORAGE_ACCESS_KEY:placeholder_access_key}
+  secret-key: ${STORAGE_SECRET_KEY:placeholder_secret_key}
+  public-base-url: ${STORAGE_PUBLIC_BASE_URL:https://placeholder-bucket.s3.ap-south-1.amazonaws.com}
+  presign-expiry-seconds: ${STORAGE_PRESIGN_EXPIRY_SECONDS:300}
+
+# Vendor payouts (locked decision, see PROJECT_STATE.md): Cashfree Payouts is the primary
+# gateway, RazorpayX the alternate. payout.active-gateway selects which one new beneficiary
+# registrations use going forward - existing accounts keep whichever gateway they were
+# registered under, so flipping this does not retroactively move anyone.
+payout:
+  active-gateway: ${PAYOUT_ACTIVE_GATEWAY:CASHFREE}
+  # AES-256 key (base64, 32 raw bytes) encrypting vendor bank account numbers at rest - see
+  # AesGcmStringConverter. MUST be replaced with a real generated key before real bank account
+  # numbers are ever stored - the placeholder below is NOT safe for anything but local dev, and
+  # per that converter's own documented limitation, a proper KMS/HSM should hold this key in
+  # production rather than a static env var. Generate a real one with: openssl rand -base64 32
+  encryption-key: ${PAYOUT_ENCRYPTION_KEY:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
+
+# Cashfree Payouts - a different product/API from the Cashfree PG block above (different
+# credentials, different base URL, different webhook secret). "gamma" is Cashfree's sandbox
+# environment for Payouts specifically (their PG sandbox is a different hostname, already
+# configured above under cashfree.base-url).
+cashfree:
+  payouts:
+    client-id: ${CASHFREE_PAYOUTS_CLIENT_ID:placeholder_payouts_client_id}
+    client-secret: ${CASHFREE_PAYOUTS_CLIENT_SECRET:placeholder_payouts_client_secret}
+    webhook-secret: ${CASHFREE_PAYOUTS_WEBHOOK_SECRET:placeholder_payouts_webhook_secret}
+    base-url: ${CASHFREE_PAYOUTS_BASE_URL:https://payout-gamma.cashfree.com/payout/v1}
+
+# RazorpayX - the alternate payout gateway. Same key-id/key-secret pair as a regular Razorpay
+# account can be used, but account-number here is the RazorpayX CURRENT ACCOUNT NUMBER payouts
+# are debited from (not a customer/vendor account) - this must be obtained from the RazorpayX
+# dashboard after opening a current account with them, it is not the same as anything already
+# configured under razorpay.* above.
+razorpayx:
+  key-id: ${RAZORPAYX_KEY_ID:rzp_test_placeholder}
+  key-secret: ${RAZORPAYX_KEY_SECRET:placeholder_secret}
+  account-number: ${RAZORPAYX_ACCOUNT_NUMBER:placeholder_current_account_number}
+  webhook-secret: ${RAZORPAYX_WEBHOOK_SECRET:placeholder_webhook_secret}
+  base-url: ${RAZORPAYX_BASE_URL:https://api.razorpay.com/v1}
+
+shiprocket:
+  email: ${SHIPROCKET_EMAIL:placeholder@example.com}
+  password: ${SHIPROCKET_PASSWORD:placeholder_password}
+  default-pickup-location: ${SHIPROCKET_PICKUP_LOCATION:Primary}
+  webhook-token: ${SHIPROCKET_WEBHOOK_TOKEN:CHANGE_THIS_SHARED_SECRET}
+
+logging:
+  level:
+    com.marketplace: INFO
+    org.springframework.kafka: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never   # never leak DB/Kafka connection details to an unauthenticated caller

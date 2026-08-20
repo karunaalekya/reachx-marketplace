@@ -1,0 +1,29 @@
+{
+  "name": "ReachX Marketplace Backend",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-22.04",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {},
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "17",
+      "installMaven": true
+    }
+  },
+  "forwardPorts": [8080, 5432, 6379, 9092],
+  "portsAttributes": {
+    "8080": { "label": "Spring Boot API", "onAutoForward": "notify" },
+    "5432": { "label": "Postgres", "onAutoForward": "silent" },
+    "6379": { "label": "Redis", "onAutoForward": "silent" },
+    "9092": { "label": "Kafka", "onAutoForward": "silent" }
+  },
+  "postCreateCommand": "cp -n .env.example .env || true",
+  "postStartCommand": "docker compose up --build -d",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "vmware.vscode-spring-boot",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  }
+}
