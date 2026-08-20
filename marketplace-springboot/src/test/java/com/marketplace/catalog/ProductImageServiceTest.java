@@ -47,7 +47,7 @@ class ProductImageServiceTest {
     @Test
     void presign_returnsUploadUrl_whenVendorOwnsProductAndUnderLimit() {
         when(productRepository.findById(1L)).thenReturn(Optional.of(ownedProduct));
-        when(productImageRepository.countByProductId(1L)).thenReturn(2L);
+        when(productImageRepository.countByProductId(1L)).thenReturn(2);
         when(storageService.createPresignedUpload(anyString(), eq("image/jpeg")))
                 .thenReturn(new StorageService.PresignedUpload(
                         "https://bucket.s3/upload-url", "https://bucket.s3/products/1/abc.jpg",
@@ -72,7 +72,7 @@ class ProductImageServiceTest {
     @Test
     void presign_throwsDuplicate_whenAtImageLimit() {
         when(productRepository.findById(1L)).thenReturn(Optional.of(ownedProduct));
-        when(productImageRepository.countByProductId(1L)).thenReturn(10L);
+        when(productImageRepository.countByProductId(1L)).thenReturn(10);
 
         assertThrows(DuplicateResourceException.class, () ->
                 productImageService.createPresignedUpload(
@@ -82,7 +82,7 @@ class ProductImageServiceTest {
     @Test
     void confirmUpload_savesImage_whenObjectKeyBelongsToProduct() {
         when(productRepository.findById(1L)).thenReturn(Optional.of(ownedProduct));
-        when(productImageRepository.countByProductId(1L)).thenReturn(0L);
+        when(productImageRepository.countByProductId(1L)).thenReturn(0);
         when(storageService.publicUrlFor("products/1/abc.jpg"))
                 .thenReturn("https://bucket.s3/products/1/abc.jpg");
         when(productImageRepository.save(any(ProductImage.class))).thenAnswer(inv -> {

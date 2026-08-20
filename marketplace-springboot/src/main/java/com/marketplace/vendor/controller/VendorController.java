@@ -12,6 +12,7 @@ import com.marketplace.vendor.dto.VendorRegistrationRequest;
 import com.marketplace.vendor.dto.VendorResponse;
 import com.marketplace.vendor.service.AccountHealthService;
 import com.marketplace.vendor.service.VendorService;
+import com.marketplace.common.security.CurrentVendor;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;

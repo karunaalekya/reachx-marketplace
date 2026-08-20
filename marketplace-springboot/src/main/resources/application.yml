@@ -110,6 +110,15 @@ cashfree:
   client-secret: ${CASHFREE_CLIENT_SECRET:placeholder_client_secret}
   webhook-secret: ${CASHFREE_WEBHOOK_SECRET:placeholder_webhook_secret}
   base-url: ${CASHFREE_BASE_URL:https://sandbox.cashfree.com/pg}
+  # Cashfree Payouts - a different product/API from the Cashfree PG block above (different
+  # credentials, different base URL, different webhook secret). "gamma" is Cashfree's sandbox
+  # environment for Payouts specifically (their PG sandbox is a different hostname, already
+  # configured above under cashfree.base-url).
+  payouts:
+    client-id: ${CASHFREE_PAYOUTS_CLIENT_ID:placeholder_payouts_client_id}
+    client-secret: ${CASHFREE_PAYOUTS_CLIENT_SECRET:placeholder_payouts_client_secret}
+    webhook-secret: ${CASHFREE_PAYOUTS_WEBHOOK_SECRET:placeholder_payouts_webhook_secret}
+    base-url: ${CASHFREE_PAYOUTS_BASE_URL:https://payout-gamma.cashfree.com/payout/v1}
 
 payu:
   merchant-key: ${PAYU_MERCHANT_KEY:placeholder_key}
@@ -141,16 +150,6 @@ payout:
   # production rather than a static env var. Generate a real one with: openssl rand -base64 32
   encryption-key: ${PAYOUT_ENCRYPTION_KEY:MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5MDE=}
 
-# Cashfree Payouts - a different product/API from the Cashfree PG block above (different
-# credentials, different base URL, different webhook secret). "gamma" is Cashfree's sandbox
-# environment for Payouts specifically (their PG sandbox is a different hostname, already
-# configured above under cashfree.base-url).
-cashfree:
-  payouts:
-    client-id: ${CASHFREE_PAYOUTS_CLIENT_ID:placeholder_payouts_client_id}
-    client-secret: ${CASHFREE_PAYOUTS_CLIENT_SECRET:placeholder_payouts_client_secret}
-    webhook-secret: ${CASHFREE_PAYOUTS_WEBHOOK_SECRET:placeholder_payouts_webhook_secret}
-    base-url: ${CASHFREE_PAYOUTS_BASE_URL:https://payout-gamma.cashfree.com/payout/v1}
 
 # RazorpayX - the alternate payout gateway. Same key-id/key-secret pair as a regular Razorpay
 # account can be used, but account-number here is the RazorpayX CURRENT ACCOUNT NUMBER payouts
@@ -180,6 +179,9 @@ management:
     web:
       exposure:
         include: health
+  health:
+    mail:
+      enabled: false
   endpoint:
     health:
       show-details: never   # never leak DB/Kafka connection details to an unauthenticated caller
