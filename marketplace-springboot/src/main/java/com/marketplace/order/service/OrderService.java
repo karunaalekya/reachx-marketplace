@@ -181,6 +181,17 @@ public class OrderService {
         return OrderResponse.from(order);
     }
 
+    // Public guest-order-tracking lookup - requires order number AND email to match, not just
+    // the order number alone (which is guessable). Same "not found" message whether the order
+    // number doesn't exist or the email doesn't match it, so this can't be used to enumerate
+    // valid customer emails against a known order number.
+    public OrderResponse lookupByOrderNumberAndEmail(String orderNumber, String email) {
+        Order order = orderRepository.findByOrderNumber(orderNumber)
+                .filter(o -> o.getCustomerEmail().equalsIgnoreCase(email))
+                .orElseThrow(() -> new ResourceNotFoundException("No matching order found."));
+        return OrderResponse.from(order);
+    }
+
     @Transactional
     public void markPaid(Long orderId) {
         Order order = orderRepository.findById(orderId)

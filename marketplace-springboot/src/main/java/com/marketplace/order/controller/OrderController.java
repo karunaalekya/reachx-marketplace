@@ -36,8 +36,20 @@ public class OrderController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<OrderResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(orderService.getById(id));
+    }
+
+    // Public order-tracking lookup for the (guest-checkout) customer - order number alone isn't
+    // enough, since order numbers are sequential-ish and guessable. Requiring the email the
+    // customer entered at checkout closes that off, same pattern as Flipkart/Amazon guest order
+    // tracking.
+    @GetMapping("/lookup")
+    public ResponseEntity<OrderResponse> lookup(
+            @RequestParam String orderNumber,
+            @RequestParam String email) {
+        return ResponseEntity.ok(orderService.lookupByOrderNumberAndEmail(orderNumber, email));
     }
 
     // Vendor's own orders - each vendor sees only their own items/subtotal/shipment,
