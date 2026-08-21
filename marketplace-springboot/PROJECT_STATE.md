@@ -263,3 +263,36 @@ constructors, missing CORS, missing actuator dependency) → gap-filling (passwo
 verification, rate limiting, idempotency, abandoned-order expiry, vendor suspend). Each round
 found real bugs from the round before — this is normal for iterative AI-assisted builds, not a
 sign anything is uniquely broken. Expect more to surface once `mvn test` actually runs.
+
+## Session Update - 2026-08-21 - Backend verified live against frontend Session 5
+
+**Backend status: RUNNING and VERIFIED locally.**
+- docker-compose up (postgres, redis, zookeeper, kafka, app) - all healthy
+- Flyway: 19/19 migrations validated, schema current
+- smoke_test.sh: 13/13 hard checks PASS, 0 FAIL
+- 2 informational items from smoke_test.sh worth a look (not bugs):
+  - Item 15 (GET /shipments/order/{id}) returned 200 instead of expected 404 - script's
+    expectation may be stale, or a shipment exists from a prior run. Not investigated yet.
+  - Item 16 (POST /disputes) - smoke_test.sh's guessed payload shape is WRONG, not the API.
+    Real required fields: raisedByEmail, vendorId, category (not orderId/reason/description).
+    Confirmed correct in frontend's disputesApi.ts already (see below) - smoke_test.sh itself
+    should be fixed to match, not the API or the frontend.
+
+**Frontend Session 5 (router build) status: unzipped and running, NOT yet manually
+walked through against live backend (login flow untested end-to-end as of this note).**
+- Location referenced in this session: reachx-frontend-SESSION5-router.zip
+- All 6 API wrapper files (authApi, ordersApi, payoutApi, disputesApi, kycApi,
+  accountHealthApi) carry source-verified header comments confirming they were checked
+  directly against backend controllers/DTOs, not guessed. Spot-checked disputesApi.ts
+  against smoke_test.sh's live response - frontend contract is correct, matches real API.
+- API_BASE defaults correctly to http://localhost:8080/api/v1 in every file, matches
+  docker-compose.yml's default CORS_ALLOWED_ORIGINS (localhost:5173, localhost:3000).
+- authApi.ts only wraps login - vendor self-registration (POST /vendors/register, confirmed
+  live) intentionally not wired yet, out of Session 5 scope per its own comment.
+
+**Next concrete step:** register a test vendor via curl, log in through the actual frontend
+UI at localhost:5173, and confirm the dashboard shell + Orders/Payouts/Disputes/KYC panels
+load real data end-to-end. This is the one thing not yet verified - build passing and API
+contracts matching is not the same as a confirmed working login-to-dashboard flow.
+
+**Do NOT start frontend sessions 6-8 until the above end-to-end check is done and clean.**
