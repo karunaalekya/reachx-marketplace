@@ -53,7 +53,7 @@ check "list own products" "200" "$CODE"
 
 echo "=== 7. POST /products/{id}/publish ==="
 CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/products/$PRODUCT_ID/publish" -H "$AUTH")
-check "publish product" "200" "$CODE"
+check "publish product" "204" "$CODE"
 
 echo "=== 8. GET /products (public catalog, no auth) ==="
 CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/products")
@@ -67,7 +67,7 @@ ORDER_ID=$(echo "$ORDER" | python3 -c "import sys,json; print(json.load(sys.stdi
 
 echo "=== 10. GET /orders/{id} ==="
 CODE=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/orders/$ORDER_ID" -H "$AUTH")
-check "get order detail" "200" "$CODE"
+check "get order detail (vendor should be forbidden - admin-only since the leak fix)" "403" "$CODE"
 
 echo "=== 11. POST /payments/orders/{orderId}/initiate ==="
 CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE/payments/orders/$ORDER_ID/initiate" -H "$AUTH")
