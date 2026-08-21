@@ -4,7 +4,10 @@ import com.marketplace.order.dto.CreateOrderRequest;
 import com.marketplace.order.dto.OrderResponse;
 import com.marketplace.common.security.CurrentVendor;
 import com.marketplace.order.dto.VendorOrderResponse;
+import com.marketplace.order.model.Order;
 import com.marketplace.order.service.OrderService;
+
+import java.util.Map;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -38,10 +41,22 @@ public class OrderController {
     }
 
     // Vendor's own orders - each vendor sees only their own items/subtotal/shipment,
-    // never another vendor's products sharing the same order.
+    // never another vendor's products sharing the same order. Optional status filter powers
+    // Amazon/Flipkart-style tabs (Pending/Shipped/Delivered/etc.) on the frontend.
     @GetMapping("/mine")
     @PreAuthorize("hasRole('VENDOR')")
-    public ResponseEntity<Page<VendorOrderResponse>> mine(@CurrentVendor Long vendorId, Pageable pageable) {
-        return ResponseEntity.ok(orderService.findMineForVendor(vendorId, pageable));
+    public ResponseEntity<Page<VendorOrderResponse>> mine(
+            @CurrentVendor Long vendorId,
+            @RequestParam(required = false) Order.OrderStatus status,
+            Pageable pageable) {
+        return ResponseEntity.ok(orderService.findMineForVendor(vendorId, status, pageable));
+    }
+
+    // Per-status counts for the current vendor - powers badge numbers on each tab, same
+    // pattern as GET /commissions/mine/pending-total.
+    @GetMapping("/mine/status-counts")
+    @PreAuthorize("hasRole('VENDOR')")
+    public ResponseEntity<Map<String, Long>> myStatusCounts(@CurrentVendor Long vendorId) {
+        return ResponseEntity.ok(orderService.getStatusCountsForVendor(vendorId));
     }
 }

@@ -30,7 +30,9 @@ import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -210,14 +212,30 @@ public class OrderService {
         log.warn("Order marked PAYMENT_FAILED and stock restored: id={} reason={}", orderId, reason);
     }
 
-    public Page<VendorOrderResponse> findMineForVendor(Long vendorId, Pageable pageable) {
-        return orderRepository.findDistinctByItems_VendorId(vendorId, pageable)
-                .map(order -> {
-                    ShipmentResponse shipment = shipmentRepository.findByOrderIdAndVendorId(order.getId(), vendorId)
-                            .map(ShipmentResponse::from)
-                            .orElse(null);
-                    return VendorOrderResponse.from(order, vendorId, shipment);
-                });
+    public Page<VendorOrderResponse> findMineForVendor(Long vendorId, Order.OrderStatus status, Pageable pageable) {
+        Page<Order> orders = (status != null)
+                ? orderRepository.findDistinctByItems_VendorIdAndStatus(vendorId, status, pageable)
+                : orderRepository.findDistinctByItems_VendorId(vendorId, pageable);
+
+        return orders.map(order -> {
+            ShipmentResponse shipment = shipmentRepository.findByOrderIdAndVendorId(order.getId(), vendorId)
+                    .map(ShipmentResponse::from)
+                    .orElse(null);
+            return VendorOrderResponse.from(order, vendorId, shipment);
+        });
+    }
+
+    // Zero-filled so the frontend can render every tab badge without missing-key checks, even
+    // for statuses the vendor has no orders in yet.
+    public Map<String, Long> getStatusCountsForVendor(Long vendorId) {
+        Map<String, Long> counts = new LinkedHashMap<>();
+        for (Order.OrderStatus s : Order.OrderStatus.values()) {
+            counts.put(s.name(), 0L);
+        }
+        for (Object[] row : orderRepository.countByVendorGroupedByStatus(vendorId)) {
+            counts.put(((Order.OrderStatus) row[0]).name(), (Long) row[1]);
+        }
+        return counts;
     }
 
     private String generateOrderNumber() {
