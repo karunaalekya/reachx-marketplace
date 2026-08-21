@@ -8,6 +8,7 @@ import com.marketplace.order.model.Order;
 import com.marketplace.order.model.OrderVendorShippingCharge;
 import com.marketplace.order.repository.OrderRepository;
 import com.marketplace.order.repository.OrderVendorShippingChargeRepository;
+import com.marketplace.shipping.repository.ShipmentRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -29,6 +30,7 @@ class OrderServiceTest {
     @Mock private OrderRepository orderRepository;
     @Mock private ProductRepository productRepository;
     @Mock private OrderVendorShippingChargeRepository shippingChargeRepository;
+    @Mock private ShipmentRepository shipmentRepository;
     @Mock private KafkaTemplate<String, Object> kafkaTemplate;
 
     // Real (not mocked) calculator - a flat, deterministic rule, and exercising the real object
@@ -41,7 +43,7 @@ class OrderServiceTest {
     private OrderService service() {
         return new OrderService(
                 orderRepository, productRepository, shippingChargeRepository,
-                shippingCostCalculator, kafkaTemplate);
+                shippingCostCalculator, shipmentRepository, kafkaTemplate);
     }
 
     private Product product(Long id, Long vendorId, BigDecimal price) {

@@ -79,6 +79,7 @@ class InvoiceServiceTest {
         when(numberGenerator.allocateNext(20L))
                 .thenReturn(new InvoiceNumberGenerator.Allocation("INV/20/2026-27/000001", "2026-27", 1));
         when(storageService.publicUrlFor(any())).thenReturn("https://bucket.example.com/invoice.pdf");
+        when(invoiceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         service().generateForShipment(1L);
 
@@ -111,6 +112,7 @@ class InvoiceServiceTest {
         when(numberGenerator.allocateNext(20L))
                 .thenReturn(new InvoiceNumberGenerator.Allocation("INV/20/2026-27/000001", "2026-27", 1));
         when(storageService.publicUrlFor(any())).thenReturn("https://bucket.example.com/invoice.pdf");
+        when(invoiceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         service().generateForShipment(1L);
 
@@ -144,6 +146,7 @@ class InvoiceServiceTest {
         when(numberGenerator.allocateNext(20L))
                 .thenReturn(new InvoiceNumberGenerator.Allocation("INV/20/2026-27/000001", "2026-27", 1));
         when(storageService.publicUrlFor(any())).thenReturn("https://bucket.example.com/invoice.pdf");
+        when(invoiceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         service().generateForShipment(1L);
 
@@ -174,6 +177,7 @@ class InvoiceServiceTest {
         when(numberGenerator.allocateNext(20L))
                 .thenReturn(new InvoiceNumberGenerator.Allocation("INV/20/2026-27/000001", "2026-27", 1));
         when(storageService.publicUrlFor(any())).thenReturn("https://bucket.example.com/invoice.pdf");
+        when(invoiceRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         service().generateForShipment(1L);
 
