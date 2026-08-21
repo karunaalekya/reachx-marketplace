@@ -63,6 +63,10 @@ public class DisputeService {
         return disputeRepository.findByStatus(status, pageable).map(DisputeResponse::from);
     }
 
+    public Page<DisputeResponse> findByVendor(Long vendorId, Pageable pageable) {
+        return disputeRepository.findByVendorId(vendorId, pageable).map(DisputeResponse::from);
+    }
+
     public DisputeResponse getById(Long id) {
         return DisputeResponse.from(findOrThrow(id));
     }

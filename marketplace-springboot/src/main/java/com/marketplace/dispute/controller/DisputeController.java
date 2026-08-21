@@ -1,6 +1,7 @@
 package com.marketplace.dispute.controller;
 
 import com.marketplace.common.security.CurrentAdmin;
+import com.marketplace.common.security.CurrentVendor;
 import com.marketplace.dispute.dto.DisputeResponse;
 import com.marketplace.dispute.dto.RaiseDisputeRequest;
 import com.marketplace.dispute.dto.ResolveDisputeRequest;
@@ -26,6 +27,13 @@ public class DisputeController {
     @PostMapping
     public ResponseEntity<DisputeResponse> raise(@Valid @RequestBody RaiseDisputeRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(disputeService.raise(request));
+    }
+
+    // Vendor's own disputes.
+    @GetMapping("/mine")
+    @PreAuthorize("hasRole('VENDOR')")
+    public ResponseEntity<Page<DisputeResponse>> mine(@CurrentVendor Long vendorId, Pageable pageable) {
+        return ResponseEntity.ok(disputeService.findByVendor(vendorId, pageable));
     }
 
     @GetMapping("/{id}")
