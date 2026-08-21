@@ -12,8 +12,13 @@ import com.marketplace.order.event.OrderCreatedEvent;
 import com.marketplace.order.model.Order;
 import com.marketplace.order.model.OrderItem;
 import com.marketplace.order.model.OrderVendorShippingCharge;
+import com.marketplace.order.dto.VendorOrderResponse;
 import com.marketplace.order.repository.OrderRepository;
 import com.marketplace.order.repository.OrderVendorShippingChargeRepository;
+import com.marketplace.shipping.dto.ShipmentResponse;
+import com.marketplace.shipping.repository.ShipmentRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -38,6 +43,7 @@ public class OrderService {
     private final ProductRepository productRepository;
     private final OrderVendorShippingChargeRepository shippingChargeRepository;
     private final ShippingCostCalculator shippingCostCalculator;
+    private final ShipmentRepository shipmentRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMdd").withZone(ZoneOffset.UTC);
@@ -202,6 +208,16 @@ public class OrderService {
         }
 
         log.warn("Order marked PAYMENT_FAILED and stock restored: id={} reason={}", orderId, reason);
+    }
+
+    public Page<VendorOrderResponse> findMineForVendor(Long vendorId, Pageable pageable) {
+        return orderRepository.findDistinctByItems_VendorId(vendorId, pageable)
+                .map(order -> {
+                    ShipmentResponse shipment = shipmentRepository.findByOrderIdAndVendorId(order.getId(), vendorId)
+                            .map(ShipmentResponse::from)
+                            .orElse(null);
+                    return VendorOrderResponse.from(order, vendorId, shipment);
+                });
     }
 
     private String generateOrderNumber() {

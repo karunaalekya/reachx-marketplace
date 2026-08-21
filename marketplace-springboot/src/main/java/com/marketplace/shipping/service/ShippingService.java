@@ -140,6 +140,12 @@ public class ShippingService {
                 .toList();
     }
 
+    public java.util.Optional<com.marketplace.shipping.dto.ShipmentResponse> findByOrderIdAndVendorId(
+            Long orderId, Long vendorId) {
+        return shipmentRepository.findByOrderIdAndVendorId(orderId, vendorId)
+                .map(com.marketplace.shipping.dto.ShipmentResponse::from);
+    }
+
     // Called by the tracking webhook once signature/source is verified.
     @Transactional
     public void updateShipmentStatus(String awbNumber, String newStatus) {

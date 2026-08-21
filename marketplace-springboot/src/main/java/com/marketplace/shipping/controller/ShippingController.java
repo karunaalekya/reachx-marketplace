@@ -1,5 +1,6 @@
 package com.marketplace.shipping.controller;
 
+import com.marketplace.common.security.CurrentVendor;
 import com.marketplace.shipping.dto.ShiprocketTrackingWebhook;
 import com.marketplace.shipping.service.ShippingService;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,6 +25,17 @@ public class ShippingController {
     public ResponseEntity<java.util.List<com.marketplace.shipping.dto.ShipmentResponse>> byOrder(
             @PathVariable Long orderId) {
         return ResponseEntity.ok(shippingService.findByOrderId(orderId));
+    }
+
+    // Vendor-scoped: unlike byOrder() above, this never leaks another vendor's tracking info
+    // sharing the same order.
+    @GetMapping("/mine/order/{orderId}")
+    @PreAuthorize("hasRole('VENDOR')")
+    public ResponseEntity<com.marketplace.shipping.dto.ShipmentResponse> mineForOrder(
+            @CurrentVendor Long vendorId, @PathVariable Long orderId) {
+        return shippingService.findByOrderIdAndVendorId(orderId, vendorId)
+                .map(ResponseEntity::ok)
+                .orElse(ResponseEntity.notFound().build());
     }
 
     // Shiprocket's tracking webhook has no signature scheme like Razorpay's - trust is

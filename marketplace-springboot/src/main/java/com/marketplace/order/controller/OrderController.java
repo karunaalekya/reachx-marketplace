@@ -2,11 +2,16 @@ package com.marketplace.order.controller;
 
 import com.marketplace.order.dto.CreateOrderRequest;
 import com.marketplace.order.dto.OrderResponse;
+import com.marketplace.common.security.CurrentVendor;
+import com.marketplace.order.dto.VendorOrderResponse;
 import com.marketplace.order.service.OrderService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -30,5 +35,13 @@ public class OrderController {
     @GetMapping("/{id}")
     public ResponseEntity<OrderResponse> getById(@PathVariable Long id) {
         return ResponseEntity.ok(orderService.getById(id));
+    }
+
+    // Vendor's own orders - each vendor sees only their own items/subtotal/shipment,
+    // never another vendor's products sharing the same order.
+    @GetMapping("/mine")
+    @PreAuthorize("hasRole('VENDOR')")
+    public ResponseEntity<Page<VendorOrderResponse>> mine(@CurrentVendor Long vendorId, Pageable pageable) {
+        return ResponseEntity.ok(orderService.findMineForVendor(vendorId, pageable));
     }
 }
