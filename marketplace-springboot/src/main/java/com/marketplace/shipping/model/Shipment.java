@@ -44,6 +44,9 @@ public class Shipment {
     @Column(name = "failure_reason")
     private String failureReason;
 
+    @Column(name = "ship_by_deadline")
+    private Instant shipByDeadline;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 

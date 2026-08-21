@@ -168,6 +168,7 @@ shiprocket:
   password: ${SHIPROCKET_PASSWORD:placeholder_password}
   default-pickup-location: ${SHIPROCKET_PICKUP_LOCATION:Primary}
   webhook-token: ${SHIPROCKET_WEBHOOK_TOKEN:CHANGE_THIS_SHARED_SECRET}
+  sla-hours: ${SHIPMENT_SLA_HOURS:48}
 
 logging:
   level:

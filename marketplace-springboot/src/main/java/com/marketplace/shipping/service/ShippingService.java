@@ -39,6 +39,9 @@ public class ShippingService {
     @Value("${shiprocket.default-pickup-location}")
     private String defaultPickupLocation;
 
+    @Value("${shiprocket.sla-hours}")
+    private int slaHours;
+
     // Called after payment succeeds. Splits the order by vendor and creates a separate
     // Shiprocket shipment per vendor, since each vendor ships independently.
     @Transactional
@@ -72,6 +75,7 @@ public class ShippingService {
                 .orderId(order.getId())
                 .vendorId(vendorId)
                 .status(Shipment.ShipmentStatus.PENDING)
+                .shipByDeadline(Instant.now().plus(slaHours, java.time.temporal.ChronoUnit.HOURS))
                 .build();
         shipment = shipmentRepository.save(shipment);
 
