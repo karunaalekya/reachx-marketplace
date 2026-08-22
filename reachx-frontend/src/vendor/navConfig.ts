@@ -54,8 +54,8 @@ export const NAV_ITEMS: NavItem[] = [
     key: "invoices",
     label: "Invoices",
     icon: FileText,
-    built: false,
-    sessionNote: "Invoice list and download - backend InvoiceController (GST invoice generation) is live and untouched by any frontend UI yet.",
+    built: true,
+    sessionNote: "",
   },
   {
     key: "payments",

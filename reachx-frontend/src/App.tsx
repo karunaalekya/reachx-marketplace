@@ -8,6 +8,7 @@ import { VendorPayoutsRoute } from "./vendor/routes/VendorPayoutsRoute";
 import { VendorOrdersRoute } from "./vendor/routes/VendorOrdersRoute";
 import { VendorDisputesRoute } from "./vendor/routes/VendorDisputesRoute";
 import { VendorProductsRoute } from "./vendor/routes/VendorProductsRoute";
+import { VendorInvoicesRoute } from "./vendor/routes/VendorInvoicesRoute";
 import { VendorPlaceholderRoute } from "./vendor/routes/VendorPlaceholderRoute";
 import { AdminConsoleShell } from "./admin/layouts/AdminConsoleShell";
 import { AdminKycRoute } from "./admin/routes/AdminKycRoute";
@@ -97,7 +98,7 @@ export default function App() {
           <Route path="orders" element={<VendorOrdersRoute />} />
           <Route path="disputes" element={<VendorDisputesRoute />} />
           <Route path="catalogue" element={<VendorProductsRoute />} />
-          <Route path="invoices" element={<VendorPlaceholderRoute sectionKey="invoices" />} />
+          <Route path="invoices" element={<VendorInvoicesRoute />} />
           <Route path="payments" element={<VendorPlaceholderRoute sectionKey="payments" />} />
           <Route path="refunds" element={<VendorPlaceholderRoute sectionKey="refunds" />} />
           <Route path="shipping" element={<VendorPlaceholderRoute sectionKey="shipping" />} />
