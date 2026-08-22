@@ -64,7 +64,7 @@ class RefundServiceTest {
                 .status(Payment.PaymentStatus.SUCCESS)
                 .build();
 
-        when(refundRepository.findByOrderId(10L)).thenReturn(Optional.empty());
+        when(refundRepository.findByOrderIdAndVendorId(10L, 1L)).thenReturn(Optional.empty());
         when(orderRepository.findById(10L)).thenReturn(Optional.of(order));
         when(paymentRepository.findFirstByOrderIdAndStatusOrderByCreatedAtDesc(10L, Payment.PaymentStatus.SUCCESS))
                 .thenReturn(Optional.of(payment));
@@ -95,7 +95,7 @@ class RefundServiceTest {
                 .status(Payment.PaymentStatus.SUCCESS)
                 .build();
 
-        when(refundRepository.findByOrderId(11L)).thenReturn(Optional.empty());
+        when(refundRepository.findByOrderIdAndVendorId(11L, 1L)).thenReturn(Optional.empty());
         when(orderRepository.findById(11L)).thenReturn(Optional.of(order));
         when(paymentRepository.findFirstByOrderIdAndStatusOrderByCreatedAtDesc(11L, Payment.PaymentStatus.SUCCESS))
                 .thenReturn(Optional.of(payment));
@@ -124,7 +124,7 @@ class RefundServiceTest {
                 .status(Payment.PaymentStatus.SUCCESS)
                 .build();
 
-        when(refundRepository.findByOrderId(12L)).thenReturn(Optional.empty());
+        when(refundRepository.findByOrderIdAndVendorId(12L, 1L)).thenReturn(Optional.empty());
         when(orderRepository.findById(12L)).thenReturn(Optional.of(order));
         when(paymentRepository.findFirstByOrderIdAndStatusOrderByCreatedAtDesc(12L, Payment.PaymentStatus.SUCCESS))
                 .thenReturn(Optional.of(payment));
@@ -158,7 +158,7 @@ class RefundServiceTest {
                 .orderId(13L).vendorId(1L).shippingFeeAmount(BigDecimal.valueOf(60))
                 .build();
 
-        when(refundRepository.findByOrderId(13L)).thenReturn(Optional.empty());
+        when(refundRepository.findByOrderIdAndVendorId(13L, 1L)).thenReturn(Optional.empty());
         when(orderRepository.findById(13L)).thenReturn(Optional.of(order));
         when(paymentRepository.findFirstByOrderIdAndStatusOrderByCreatedAtDesc(13L, Payment.PaymentStatus.SUCCESS))
                 .thenReturn(Optional.of(payment));
@@ -198,7 +198,7 @@ class RefundServiceTest {
                 .orderId(14L).vendorId(1L).shippingFeeAmount(BigDecimal.valueOf(20))
                 .build();
 
-        when(refundRepository.findByOrderId(14L)).thenReturn(Optional.empty());
+        when(refundRepository.findByOrderIdAndVendorId(14L, 1L)).thenReturn(Optional.empty());
         when(orderRepository.findById(14L)).thenReturn(Optional.of(order));
         when(paymentRepository.findFirstByOrderIdAndStatusOrderByCreatedAtDesc(14L, Payment.PaymentStatus.SUCCESS))
                 .thenReturn(Optional.of(payment));

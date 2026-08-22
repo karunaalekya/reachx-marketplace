@@ -11,38 +11,38 @@ export { currentFinancialYear } from "../../vendor/api/payoutApi";
 
 export type TaxType = "TCS" | "TDS";
 
-// B-OQ3 (per the session plan, still open at the start of this session): "TaxWithholdingSummary
-// field shape - endpoint confirmed, DTO fields not pulled." Same situation adminInvoicesApi.ts
-// was in for InvoiceSummary in Session 3, and the same discipline applies: type the row narrowly
-// - only the fields a per-vendor tax summary plausibly can't ship without (which vendor this row
-// is for, and the one number the whole report exists to show) - rather than inventing a fuller
-// shape (a CGST/SGST/IGST-style breakdown, filing status, due dates) that was never confirmed
-// against real source. That exact kind of invention is what payoutApi.ts's own comment already
-// flagged and walked back once for the vendor-side ledger (no CGST/SGST/IGST split exists
-// anywhere in this backend's tax model - see its "Also correcting..." paragraph) - not repeating
-// it here. `orderCount` and `grossAmount` are included as likely-but-unconfirmed extras and
-// rendered defensively (fall back to "—") by the consuming component, same pattern
-// VendorInvoiceList.tsx uses for InvoiceSummary's own soft fields.
+// Corrected against the real TaxWithholdingController/TaxWithholdingSummary source (previously
+// guessed - see git history). GET /tax-withholding/report/{financialYear}/{taxType} actually
+// returns TaxWithholdingSummary(vendorId, financialYear, taxType, totalTaxableValue,
+// totalAmountWithheld, recordCount) - a record, not the guessed shape. Two concrete corrections:
+// there is no businessName field at all (the row only ever has a vendorId - the UI's "Vendor
+// #{id}" fallback is actually the ONLY thing that will ever render there, not a fallback for a
+// rare gap), and the amount field is `totalAmountWithheld`, not `taxAmount` - the previous name
+// was passed unguarded into formatCurrency(), so every render threw
+// (`undefined.toLocaleString()`) instead of showing a number. `recordCount` (rendered as
+// `orderCount` was) and `totalTaxableValue` (rendered as `grossAmount` was) do exist, just under
+// different names - kept the same optional/guarded rendering treatment.
 export interface TaxWithholdingSummary {
   vendorId: number;
-  businessName: string;
-  taxAmount: number;
-  orderCount?: number;
-  grossAmount?: number;
+  financialYear: string;
+  taxType: TaxType;
+  totalTaxableValue: number;
+  totalAmountWithheld: number;
+  recordCount: number;
 }
 
-// Raw per-order drill-down row for GET /tax-withholding/vendor/{vendorId} - same B-OQ3 caveat:
-// the endpoint and "raw per-order records" description are confirmed by the session plan, the
-// exact field list is not. Narrowed the same way: an id to key React rows on, the order this
-// line is for, which tax type it belongs to (this endpoint is not filtered by taxType the way
-// the report endpoint is - a vendor's drill-down plausibly returns both TCS and TDS lines
-// together), the taxable base and the withheld amount, and when the order was recorded.
+// Corrected against the real TaxWithholdingRecord entity (previously guessed). The raw per-order
+// row's taxable base and withheld amount are `taxableValue`/`amount` on the entity, not
+// `taxableAmount`/`taxAmount` - this one degraded silently (typeof-guarded to "—") rather than
+// crashing, but was still wrong. supplyType exists on the entity too; included since the
+// drill-down is the natural place to show INTRA_STATE/INTER_STATE.
 export interface TaxWithholdingOrderRecord {
   id: number;
   orderId: number;
   taxType: TaxType;
-  taxableAmount: number;
-  taxAmount: number;
+  supplyType?: "INTRA_STATE" | "INTER_STATE";
+  taxableValue: number;
+  amount: number;
   createdAt: string;
 }
 

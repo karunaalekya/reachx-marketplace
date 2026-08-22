@@ -102,11 +102,11 @@ export function TaxVendorRecordsPanel({ authToken }: TaxVendorRecordsPanelProps)
               </div>
               <div className="shrink-0 text-right">
                 <p className="tabular-nums font-mono text-sm text-brand-indigo">
-                  {typeof record.taxAmount === "number" ? formatCurrency(record.taxAmount) : "—"}
+                  {typeof record.amount === "number" ? formatCurrency(record.amount) : "—"}
                 </p>
-                {typeof record.taxableAmount === "number" && (
+                {typeof record.taxableValue === "number" && (
                   <p className="text-xs tabular-nums opacity-50">
-                    on {formatCurrency(record.taxableAmount)}
+                    on {formatCurrency(record.taxableValue)}
                   </p>
                 )}
               </div>

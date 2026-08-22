@@ -53,15 +53,22 @@ public class RefundService {
     }
 
     // Called by DisputeService when a dispute is resolved as RESOLVED_REFUNDED. Idempotent -
-    // if a refund already exists for this order, returns it rather than double-refunding.
-    // vendorId scopes the refund to ONLY that vendor's line items in the order - a disputed
-    // item from one vendor in a multi-vendor cart must not refund the whole order's payment,
-    // which would incorrectly claw back money owed to other, undisputed vendors.
+    // if a refund already exists for this (order, vendor), returns it rather than
+    // double-refunding. vendorId scopes the refund to ONLY that vendor's line items in the
+    // order - a disputed item from one vendor in a multi-vendor cart must not refund the whole
+    // order's payment, which would incorrectly claw back money owed to other, undisputed
+    // vendors.
+    //
+    // Scoped by (orderId, vendorId), not orderId alone (fixed by V20 migration) - the previous
+    // orderId-only check meant a second vendor's dispute-triggered refund on the same
+    // multi-vendor order was silently skipped, because the first vendor's refund row already
+    // satisfied "a refund exists for this order".
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Refund initiateRefund(Long orderId, Long vendorId, Long disputeId, Long adminId, String reason) {
-        Optional<Refund> existing = refundRepository.findByOrderId(orderId);
+        Optional<Refund> existing = refundRepository.findByOrderIdAndVendorId(orderId, vendorId);
         if (existing.isPresent()) {
-            log.info("Refund already exists for orderId={}, skipping duplicate initiation", orderId);
+            log.info("Refund already exists for orderId={} vendorId={}, skipping duplicate initiation",
+                    orderId, vendorId);
             return existing.get();
         }
 
@@ -114,6 +121,7 @@ public class RefundService {
 
         Refund refund = Refund.builder()
                 .orderId(orderId)
+                .vendorId(vendorId)
                 .paymentId(payment.getId())
                 .disputeId(disputeId)
                 .gateway(Refund.Gateway.valueOf(payment.getGateway().name()))

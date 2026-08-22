@@ -22,6 +22,14 @@ public class Refund {
     @Column(name = "order_id", nullable = false)
     private Long orderId;
 
+    // Added by V20 - see that migration for why this was missing and what it broke
+    // (findByOrderId as the idempotency check meant only one vendor's refund per order could
+    // ever exist). Nullable at the entity level to match the migration's deferred NOT NULL on
+    // pre-existing multi-vendor rows that couldn't be backfilled unambiguously - every refund
+    // created via RefundService from here on always sets it.
+    @Column(name = "vendor_id")
+    private Long vendorId;
+
     @Column(name = "payment_id", nullable = false)
     private Long paymentId;
 

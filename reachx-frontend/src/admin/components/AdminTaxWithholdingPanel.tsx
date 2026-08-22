@@ -140,29 +140,29 @@ export function AdminTaxWithholdingPanel({ authToken }: AdminTaxWithholdingPanel
                   <li key={row.vendorId} className="border-b border-brand-indigo/5 last:border-b-0">
                     <button
                       type="button"
-                      onClick={() => selectVendor(row.vendorId, row.businessName, authToken)}
+                      onClick={() => selectVendor(row.vendorId, `Vendor #${row.vendorId}`, authToken)}
                       className={`flex w-full min-h-11 items-center justify-between gap-3 px-6 py-4 text-left
                         transition focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-indigo
                         ${isSelected ? "bg-brand-indigo/5" : "hover:bg-brand-indigo/[0.03]"}`}
                     >
                       <div className="min-w-0">
                         <p className="truncate text-sm font-medium text-brand-indigo">
-                          {row.businessName || `Vendor #${row.vendorId}`}
+                          {`Vendor #${row.vendorId}`}
                         </p>
-                        {typeof row.orderCount === "number" && (
+                        {typeof row.recordCount === "number" && (
                           <p className="text-xs opacity-60">
-                            {row.orderCount} order{row.orderCount === 1 ? "" : "s"}
+                            {row.recordCount} order{row.recordCount === 1 ? "" : "s"}
                           </p>
                         )}
                       </div>
                       <div className="flex shrink-0 items-center gap-3">
                         <div className="text-right">
                           <p className="tabular-nums font-mono text-sm text-brand-indigo">
-                            {formatCurrency(row.taxAmount)}
+                            {formatCurrency(row.totalAmountWithheld)}
                           </p>
-                          {typeof row.grossAmount === "number" && (
+                          {typeof row.totalTaxableValue === "number" && (
                             <p className="text-xs tabular-nums opacity-50">
-                              on {formatCurrency(row.grossAmount)}
+                              on {formatCurrency(row.totalTaxableValue)}
                             </p>
                           )}
                         </div>
