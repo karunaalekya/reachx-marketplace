@@ -10,38 +10,38 @@ import { VendorDisputesRoute } from "./vendor/routes/VendorDisputesRoute";
 import { VendorProductsRoute } from "./vendor/routes/VendorProductsRoute";
 import { VendorPlaceholderRoute } from "./vendor/routes/VendorPlaceholderRoute";
 import { AdminConsoleShell } from "./admin/layouts/AdminConsoleShell";
-import { AdminHomeRoute } from "./admin/routes/AdminHomeRoute";
 import { AdminKycRoute } from "./admin/routes/AdminKycRoute";
 import { AdminDisputesRoute } from "./admin/routes/AdminDisputesRoute";
+import { AdminVendorsRoute } from "./admin/routes/AdminVendorsRoute";
+import { AdminVendorDetailRoute } from "./admin/routes/AdminVendorDetailRoute";
+import { AdminPayoutsRoute } from "./admin/routes/AdminPayoutsRoute";
 import { AdminTaxRoute } from "./admin/routes/AdminTaxRoute";
 
-// Route shape (updated this session - Session 8):
-//   /login              - public, shared by both vendor and admin logins, redirects by real
-//                          `role` if already authenticated (see LoginRoute below)
-//   /vendor/*            - protected to role === "VENDOR", nested routes render inside
-//                          VendorDashboardShell's <Outlet/>
-//   /admin/*             - protected to role === "ADMIN", nested routes render inside
-//                          AdminConsoleShell's <Outlet/> - real UI as of this session, replacing
-//                          the placeholder reserved-route stub from the prior session
-//   /                    - redirects to /vendor for now; becomes the storefront root once that's
-//                          built (not yet - see FRONTEND_STATE.md, storefront not started)
-//
-// Role-gating tightened this session: RequireVendorAuth/RequireAdminAuth previously (session
-// that added routing) only checked token/userId were non-null, not the actual `role` string from
-// the login response. That was a real, named risk on record even then - useAuthStore.ts's own
-// comment warns "don't reuse userId as a vendor id after an ADMIN login without checking role
-// first" - but it stayed theoretical while no admin-facing route existed for an admin login to
-// reach. Now that /admin/* has real UI behind it, the same gap runs both directions (an admin
-// account could land in /vendor treating its own id as a vendor id, or a vendor could land in
-// /admin with nothing to actually call since every admin-only endpoint would 403). Both guards
-// below now check `role` explicitly instead of just presence of a token.
-
+// Route shape (this build = S8 vendor/catalogue work + Track B's full real admin console,
+// merged together). Storefront (Track C) is deliberately NOT wired in yet - the session3 zip
+// only contains checkout-flow files (CheckoutFormRoute, payments/orders API, Razorpay loader)
+// and assumes StorefrontShell/ProductBrowseRoute/ProductDetailRoute/CartRoute/
+// TrackOrderPlaceholderRoute/useCartStore/useProductBrowseStore/formatCurrency/indianStates
+// already exist from Track C sessions 1-2, which haven't been provided. Once those are
+// available, re-merge to add the storefront route tree back in (see merged-App.tsx from the
+// prior pass for the intended shape) instead of hand-patching this file.
+//   /login              - public, shared by vendor and admin logins, redirects by real `role`
+//                          from the login response if already authenticated
+//   /vendor/*            - protected to role === "VENDOR" (RequireVendorAuth below); a logged-in
+//                          ADMIN hitting this directly is redirected to their own console.
+//   /admin/*             - protected to role === "ADMIN" (RequireAdminAuth below). Every module
+//                          real: kyc, disputes, vendors (+ vendors/:vendorId), payouts, tax.
+//   /                    - temporary: redirects to /vendor, same as pre-merge behavior, until
+//                          the real storefront root replaces this.
 function RequireVendorAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
   const role = useAuthStore((s) => s.role);
-  if (!token || userId === null || role !== "VENDOR") {
+  if (!token || userId === null) {
     return <Navigate to="/login" replace />;
+  }
+  if (role !== "VENDOR") {
+    return <Navigate to="/admin" replace />;
   }
   return <>{children}</>;
 }
@@ -105,13 +105,18 @@ export default function App() {
             </RequireAdminAuth>
           }
         >
-          <Route index element={<AdminHomeRoute />} />
+          <Route index element={<Navigate to="kyc" replace />} />
           <Route path="kyc" element={<AdminKycRoute />} />
           <Route path="disputes" element={<AdminDisputesRoute />} />
+          {/* No GET /vendors list-all endpoint is confirmed, so "vendors" is a by-id lookup
+              screen, not a browsable table - see AdminVendorLookupPanel's own comment. */}
+          <Route path="vendors" element={<AdminVendorsRoute />} />
+          <Route path="vendors/:vendorId" element={<AdminVendorDetailRoute />} />
+          <Route path="payouts" element={<AdminPayoutsRoute />} />
           <Route path="tax" element={<AdminTaxRoute />} />
         </Route>
 
-        {/* Storefront root doesn't exist yet - redirect to the only real surface for now. */}
+        {/* Storefront not wired yet - see note above. Falls back to /vendor for now. */}
         <Route path="/" element={<Navigate to="/vendor" replace />} />
         <Route path="*" element={<Navigate to="/vendor" replace />} />
       </Routes>

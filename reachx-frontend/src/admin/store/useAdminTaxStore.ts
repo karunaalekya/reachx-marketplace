@@ -1,51 +1,117 @@
 import { create } from "zustand";
-import { getVendorTaxWithholding, currentFinancialYear, type TaxWithholdingTotals } from "../../vendor/api/payoutApi";
+import {
+  currentFinancialYear,
+  getTaxWithholdingReport,
+  listVendorTaxWithholdingRecords,
+  type Page,
+  type TaxType,
+  type TaxWithholdingOrderRecord,
+  type TaxWithholdingSummary,
+} from "../api/adminTaxApi";
 
-// No persist - a vendor's TCS/TDS totals are financial data about someone other than the logged
-// -in user, same reasoning as useAdminKycStore.ts / useAdminDisputeStore.ts.
-//
-// No admin-scoped equivalent of GET /commissions/mine or GET /payouts/mine is confirmed anywhere
-// in this codebase or its docs - only the FY tax-totals endpoint (getVendorTaxWithholding,
-// itself flagged as inferred in payoutApi.ts) has a named ADMIN-only counterpart on record. This
-// store - and the panel built on it - is scoped to that one confirmed-to-exist surface, not a
-// full admin payout ledger. Building a per-order admin commission/payout view would be inventing
-// an endpoint this project's own discipline has repeatedly rejected doing (see payoutApi.ts's own
-// header comment on the CGST/SGST/IGST split, or navConfig.ts's category-picker precedent) -
-// flag to the project owner if that's real near-term scope, don't guess a shape for it here.
+// Per-domain zustand store, mirrors useAdminPayoutsStore.ts's pattern. Read-only module - no
+// persist middleware (same "live business data, not cached across a reload" call as every other
+// admin store in this project), and no mutation state at all (no in-flight/retry tracking) since
+// this session ships no mutating endpoint - both real endpoints in the session plan are GETs.
 
 interface AdminTaxState {
-  vendorId: number | null;
   financialYear: string;
-  totals: TaxWithholdingTotals | null;
-  isLoading: boolean;
-  error: string | null;
+  taxType: TaxType;
 
-  lookup: (vendorId: number, financialYear: string, token: string) => Promise<void>;
-  setFinancialYear: (fy: string) => void;
-  reset: () => void;
+  // GET /tax-withholding/report/{fy}/{taxType} is not paginated per the session plan (see
+  // adminTaxApi.ts's own comment) - a plain array, not a Page<T>.
+  report: TaxWithholdingSummary[] | null;
+  reportLoading: boolean;
+  reportError: string | null;
+
+  // Drill-down: which vendor's per-order records are currently expanded, if any. null = no
+  // vendor selected, report list only.
+  selectedVendorId: number | null;
+  selectedVendorName: string | null;
+  vendorRecords: Page<TaxWithholdingOrderRecord> | null;
+  vendorRecordsLoading: boolean;
+  vendorRecordsError: string | null;
+
+  fetchReport: (token: string) => Promise<void>;
+  setFinancialYear: (financialYear: string, token: string) => Promise<void>;
+  setTaxType: (taxType: TaxType, token: string) => Promise<void>;
+  selectVendor: (vendorId: number, businessName: string, token: string) => Promise<void>;
+  fetchVendorRecords: (token: string, page?: number) => Promise<void>;
+  clearVendorSelection: () => void;
 }
 
-export const useAdminTaxStore = create<AdminTaxState>()((set) => ({
-  vendorId: null,
+export const useAdminTaxStore = create<AdminTaxState>()((set, get) => ({
   financialYear: currentFinancialYear(),
-  totals: null,
-  isLoading: false,
-  error: null,
+  taxType: "TCS",
 
-  lookup: async (vendorId, financialYear, token) => {
-    set({ isLoading: true, error: null, totals: null, vendorId, financialYear });
+  report: null,
+  reportLoading: false,
+  reportError: null,
+
+  selectedVendorId: null,
+  selectedVendorName: null,
+  vendorRecords: null,
+  vendorRecordsLoading: false,
+  vendorRecordsError: null,
+
+  fetchReport: async (token) => {
+    const { financialYear, taxType } = get();
+    set({ reportLoading: true, reportError: null });
     try {
-      const totals = await getVendorTaxWithholding(vendorId, financialYear, token);
-      set({ totals, isLoading: false });
+      const result = await getTaxWithholdingReport(financialYear, taxType, token);
+      set({ report: result, reportLoading: false });
     } catch (err) {
       set({
-        isLoading: false,
-        error: err instanceof Error ? err.message : "Failed to load tax withholding totals.",
+        reportLoading: false,
+        reportError: err instanceof Error ? err.message : "Failed to load the tax report.",
       });
     }
   },
 
-  setFinancialYear: (fy) => set({ financialYear: fy }),
+  setFinancialYear: async (financialYear, token) => {
+    // Switching year or type clears any open drill-down - a vendor's per-order records only
+    // make sense in the context of the report row that opened them, and that row is about to
+    // change or disappear.
+    set({ financialYear, selectedVendorId: null, selectedVendorName: null, vendorRecords: null });
+    await get().fetchReport(token);
+  },
 
-  reset: () => set({ vendorId: null, totals: null, error: null }),
+  setTaxType: async (taxType, token) => {
+    set({ taxType, selectedVendorId: null, selectedVendorName: null, vendorRecords: null });
+    await get().fetchReport(token);
+  },
+
+  selectVendor: async (vendorId, businessName, token) => {
+    set({
+      selectedVendorId: vendorId,
+      selectedVendorName: businessName,
+      vendorRecords: null,
+      vendorRecordsError: null,
+    });
+    await get().fetchVendorRecords(token, 0);
+  },
+
+  fetchVendorRecords: async (token, page = 0) => {
+    const { selectedVendorId } = get();
+    if (selectedVendorId === null) return;
+    set({ vendorRecordsLoading: true, vendorRecordsError: null });
+    try {
+      const result = await listVendorTaxWithholdingRecords(selectedVendorId, token, page);
+      set({ vendorRecords: result, vendorRecordsLoading: false });
+    } catch (err) {
+      set({
+        vendorRecordsLoading: false,
+        vendorRecordsError:
+          err instanceof Error ? err.message : "Failed to load this vendor's tax records.",
+      });
+    }
+  },
+
+  clearVendorSelection: () =>
+    set({
+      selectedVendorId: null,
+      selectedVendorName: null,
+      vendorRecords: null,
+      vendorRecordsError: null,
+    }),
 }));

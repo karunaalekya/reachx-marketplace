@@ -1,8 +1,8 @@
 import { useOutletContext } from "react-router-dom";
 import type { AdminOutletContext } from "../layouts/AdminConsoleShell";
-import { AdminDisputeQueuePanel } from "../components/AdminDisputeQueuePanel";
+import { AdminPayoutLedgerPanel } from "../components/AdminPayoutLedgerPanel";
 
-export function AdminDisputesRoute() {
+export function AdminPayoutsRoute() {
   const { authToken } = useOutletContext<AdminOutletContext>();
-  return <AdminDisputeQueuePanel authToken={authToken} />;
+  return <AdminPayoutLedgerPanel authToken={authToken} />;
 }

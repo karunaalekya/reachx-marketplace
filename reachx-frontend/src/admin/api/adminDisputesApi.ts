@@ -1,62 +1,85 @@
-// Admin-side counterpart to ../../vendor/api/disputesApi.ts, which is deliberately read-only
-// (see its header comment) because a vendor can neither raise nor resolve a dispute. This file
-// is where the two write/read paths that comment named actually live.
+// Checked directly against karunaalekya/reachx-marketplace's marketplace-springboot source this
+// session (DisputeController.java + DisputeService.java + DisputeResponse/ResolveDisputeRequest
+// DTOs + Dispute.java entity) - same discipline as adminKycApi.ts / vendor/api/disputesApi.ts.
 //
-// PATCH /disputes/{id}/resolve is confirmed real - disputesApi.ts's header comment names it
-// explicitly as the ADMIN-only counterpart to the public POST /disputes. Its exact request body
-// is NOT independently confirmed this session (no network access - see FRONTEND_STATE.md Session
-// 8 caveat); the shape below (`status` + `resolutionNotes`) is inferred from the response DTO
-// this project already has confirmed (`VendorDispute` in disputesApi.ts carries exactly these
-// two fields as `status`/`resolutionNotes`, set once a dispute resolves) - a resolve call setting
-// the same two fields it's known to populate is the most direct reading, not a guess pulled from
-// nowhere, but flag it for confirmation against DisputeController before trusting it live.
-//
-// GET /disputes/{id} is NOT confirmed against source either. It's inferred by analogy to this
-// project's own established pattern: OrderController exposes both a collection endpoint
-// (GET /orders/mine) and an individual-by-id endpoint (GET /orders/{id} - see ordersApi.ts /
-// FRONTEND_STATE.md's note on its public-no-auth-check leak, which only exists because that
-// endpoint is real). DisputeController's public POST /disputes creating an individual dispute
-// resource makes a symmetric GET /disputes/{id} a reasonable, common REST shape - but "reasonable
-// by analogy" is exactly the kind of inference this project has been wrong about before (the
-// original single-document KYC assumption, the CGST/SGST/IGST split). Confirm this against
-// DisputeController directly before relying on it; until then, treat a failed lookup here as
-// "unconfirmed endpoint," not "dispute doesn't exist."
+// The row shape returned by the admin-facing GET /disputes (byStatus) is DisputeResponse, the
+// exact same DTO vendor/api/disputesApi.ts already types as VendorDispute for GET /disputes/mine
+// - DisputeController#byStatus and #mine both return Page<DisputeResponse> from the same
+// service/repository. No separate admin-only shape exists, so this file re-exports that type
+// instead of redeclaring an identical interface (same reasoning adminKycApi.ts gives for reusing
+// VendorResponse as VendorSummary rather than inventing a second type for the same JSON).
 
-import type { VendorDispute, DisputeStatus } from "../../vendor/api/disputesApi";
+import type { Page } from "../../vendor/api/payoutApi";
+import type { DisputeCategory, VendorDispute } from "../../vendor/api/disputesApi";
+
+export type { DisputeCategory };
+export type Dispute = VendorDispute;
+
+// Dispute.DisputeStatus - the real enum, verbatim. Re-declared here (rather than imported) only
+// because vendor/api/disputesApi.ts's DisputeStatus type is correct but that file has no reason
+// to export a resolution-only subset - ResolveDisputeRequest.resolution only ever accepts one of
+// the three RESOLVED_* values, never OPEN/UNDER_REVIEW (that would be a status GlobalException
+// would reject as a bad enum value if attempted, but it's cleaner to make it structurally
+// impossible from this side).
+export type DisputeStatus = "OPEN" | "UNDER_REVIEW" | "RESOLVED_REFUNDED" | "RESOLVED_REJECTED" | "RESOLVED_REPLACED";
+export type DisputeResolution = "RESOLVED_REFUNDED" | "RESOLVED_REJECTED" | "RESOLVED_REPLACED";
+
+export interface ResolveDisputeRequest {
+  resolution: DisputeResolution;
+  notes: string;
+}
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/api/v1";
 
 function authHeaders(token: string): HeadersInit {
-  return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  return { Authorization: `Bearer ${token}` };
 }
 
 async function unwrap<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(body.message ?? `Request failed: ${res.status}`);
+    // Matches the confirmed { error, timestamp?, status? } body (GlobalExceptionHandler's
+    // buildResponse) - including the specific case DisputeService.resolve() throws
+    // IllegalStateException("This dispute has already been resolved"), mapped to 409 and
+    // surfaced here as a plain-language message, never a raw "409 Conflict".
+    const body = await res.json().catch(() => null);
+    throw new Error(body?.error ?? `Request failed (${res.status})`);
   }
   return res.json() as Promise<T>;
 }
 
-export async function getDispute(disputeId: number, token: string): Promise<VendorDispute> {
-  const res = await fetch(`${API_BASE}/disputes/${disputeId}`, { headers: authHeaders(token) });
-  return unwrap<VendorDispute>(res);
+// GET /disputes?status=X - ADMIN only. Backend takes exactly one status value (defaultValue
+// "OPEN" server-side, but this wrapper always sends it explicitly rather than relying on the
+// server default going out of sync with what the UI shows as selected). There is no "all
+// statuses" query support - DisputeController#byStatus does Dispute.DisputeStatus.valueOf(status),
+// a single enum lookup, not an IN-list - so no combined/unfiltered view is offered client-side
+// either; that would silently imply a backend capability that doesn't exist.
+export async function listDisputesByStatus(
+  status: DisputeStatus,
+  token: string,
+  page = 0,
+  size = 20
+): Promise<Page<Dispute>> {
+  const res = await fetch(
+    `${API_BASE}/disputes?status=${status}&page=${page}&size=${size}&sort=createdAt,asc`,
+    { headers: authHeaders(token) }
+  );
+  return unwrap<Page<Dispute>>(res);
 }
 
-export interface ResolveDisputeRequest {
-  status: Extract<DisputeStatus, "RESOLVED_REFUNDED" | "RESOLVED_REJECTED" | "RESOLVED_REPLACED">;
-  resolutionNotes: string;
-}
-
+// PATCH /disputes/{id}/resolve - ADMIN only. No refundAmount field - confirmed against
+// ResolveDisputeRequest, which only carries { resolution, notes }. The backend derives and moves
+// money itself (RefundService.initiateRefund for RESOLVED_REFUNDED, releasing the held
+// commission-record payout for RESOLVED_REJECTED) off the enum alone; adding a refund-amount
+// input here would be a client field with nowhere real to go.
 export async function resolveDispute(
-  disputeId: number,
-  body: ResolveDisputeRequest,
+  id: number,
+  request: ResolveDisputeRequest,
   token: string
-): Promise<VendorDispute> {
-  const res = await fetch(`${API_BASE}/disputes/${disputeId}/resolve`, {
+): Promise<Dispute> {
+  const res = await fetch(`${API_BASE}/disputes/${id}/resolve`, {
     method: "PATCH",
-    headers: authHeaders(token),
-    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json", ...authHeaders(token) },
+    body: JSON.stringify(request),
   });
-  return unwrap<VendorDispute>(res);
+  return unwrap<Dispute>(res);
 }
