@@ -86,7 +86,7 @@ afterEach(() => {
 describe("Login gate - real form, real store, mocked fetch boundary", () => {
   it("renders the login form when no session exists, and does not call the KYC/account-health endpoints yet", () => {
     render(<App />);
-    expect(screen.getByText("Vendor sign in")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 
@@ -105,7 +105,7 @@ describe("Login gate - real form, real store, mocked fetch boundary", () => {
     await loginThroughRealForm();
 
     expect(await screen.findByText("Invalid email or password")).toBeInTheDocument();
-    expect(screen.getByText("Vendor sign in")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 

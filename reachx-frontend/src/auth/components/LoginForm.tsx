@@ -15,8 +15,12 @@ export function LoginForm() {
 
   return (
     <div className="w-full max-w-sm rounded-lg bg-white p-8 shadow-premium-card">
-      <h1 className="font-display text-2xl text-brand-indigo">Vendor sign in</h1>
-      <p className="mt-1 text-sm opacity-70">Sign in to your ReachX seller account.</p>
+      {/* Copy generalized from "Vendor sign in" this session - /login is now shared by both
+          vendor and admin logins (App.tsx routes by the real `role` in the login response
+          rather than assuming VENDOR), so a vendor-specific heading here would be actively
+          wrong for an admin landing on the same page. */}
+      <h1 className="font-display text-2xl text-brand-indigo">Sign in</h1>
+      <p className="mt-1 text-sm opacity-70">Sign in to your ReachX account.</p>
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-4" noValidate>
         <label className="block">

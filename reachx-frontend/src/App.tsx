@@ -7,30 +7,50 @@ import { VendorKycRoute } from "./vendor/routes/VendorKycRoute";
 import { VendorPayoutsRoute } from "./vendor/routes/VendorPayoutsRoute";
 import { VendorOrdersRoute } from "./vendor/routes/VendorOrdersRoute";
 import { VendorDisputesRoute } from "./vendor/routes/VendorDisputesRoute";
+import { VendorProductsRoute } from "./vendor/routes/VendorProductsRoute";
 import { VendorPlaceholderRoute } from "./vendor/routes/VendorPlaceholderRoute";
-import { AdminConsolePlaceholder } from "./admin/AdminConsolePlaceholder";
+import { AdminConsoleShell } from "./admin/layouts/AdminConsoleShell";
+import { AdminHomeRoute } from "./admin/routes/AdminHomeRoute";
+import { AdminKycRoute } from "./admin/routes/AdminKycRoute";
+import { AdminDisputesRoute } from "./admin/routes/AdminDisputesRoute";
+import { AdminTaxRoute } from "./admin/routes/AdminTaxRoute";
 
-// Real routing added this session, replacing the earlier state-based `activeSection` approach in
-// VendorDashboardShell. That approach was a deliberate, documented choice at the time (see git
-// history on this comment block) made because no storefront/admin route tree existed yet to
-// justify the dependency. Both now do (or are about to, per ROADMAP.md session plan), so the
-// original reason for deferring no longer holds - flagged then, addressed now, not silently
-// added.
-//
-// Route shape:
-//   /login              - public, redirects to /vendor if already authenticated
-//   /vendor/*            - protected (RequireVendorAuth below), nested routes render inside
-//                          VendorDashboardShell's <Outlet/> - deep-linkable now (e.g. /vendor/kyc
-//                          survives a refresh/back-button, which the old useState never could)
-//   /admin/*             - reserved, placeholder only - real admin console UI is next session's
-//                          work per ROADMAP.md; this route exists now so that build doesn't need
-//                          another routing migration on top of its own scope
+// Route shape (updated this session - Session 8):
+//   /login              - public, shared by both vendor and admin logins, redirects by real
+//                          `role` if already authenticated (see LoginRoute below)
+//   /vendor/*            - protected to role === "VENDOR", nested routes render inside
+//                          VendorDashboardShell's <Outlet/>
+//   /admin/*             - protected to role === "ADMIN", nested routes render inside
+//                          AdminConsoleShell's <Outlet/> - real UI as of this session, replacing
+//                          the placeholder reserved-route stub from the prior session
 //   /                    - redirects to /vendor for now; becomes the storefront root once that's
 //                          built (not yet - see FRONTEND_STATE.md, storefront not started)
+//
+// Role-gating tightened this session: RequireVendorAuth/RequireAdminAuth previously (session
+// that added routing) only checked token/userId were non-null, not the actual `role` string from
+// the login response. That was a real, named risk on record even then - useAuthStore.ts's own
+// comment warns "don't reuse userId as a vendor id after an ADMIN login without checking role
+// first" - but it stayed theoretical while no admin-facing route existed for an admin login to
+// reach. Now that /admin/* has real UI behind it, the same gap runs both directions (an admin
+// account could land in /vendor treating its own id as a vendor id, or a vendor could land in
+// /admin with nothing to actually call since every admin-only endpoint would 403). Both guards
+// below now check `role` explicitly instead of just presence of a token.
+
 function RequireVendorAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
-  if (!token || userId === null) {
+  const role = useAuthStore((s) => s.role);
+  if (!token || userId === null || role !== "VENDOR") {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+}
+
+function RequireAdminAuth({ children }: { children: React.ReactNode }) {
+  const token = useAuthStore((s) => s.token);
+  const userId = useAuthStore((s) => s.userId);
+  const role = useAuthStore((s) => s.role);
+  if (!token || userId === null || role !== "ADMIN") {
     return <Navigate to="/login" replace />;
   }
   return <>{children}</>;
@@ -39,8 +59,9 @@ function RequireVendorAuth({ children }: { children: React.ReactNode }) {
 function LoginRoute() {
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
+  const role = useAuthStore((s) => s.role);
   if (token && userId !== null) {
-    return <Navigate to="/vendor" replace />;
+    return <Navigate to={role === "ADMIN" ? "/admin" : "/vendor"} replace />;
   }
   return (
     <div className="min-h-screen bg-surface-dashboard flex items-center justify-center p-8">
@@ -69,15 +90,26 @@ export default function App() {
           <Route path="tax" element={<VendorPayoutsRoute />} />
           <Route path="orders" element={<VendorOrdersRoute />} />
           <Route path="disputes" element={<VendorDisputesRoute />} />
-          <Route path="catalogue" element={<VendorPlaceholderRoute sectionKey="catalogue" />} />
+          <Route path="catalogue" element={<VendorProductsRoute />} />
           <Route path="invoices" element={<VendorPlaceholderRoute sectionKey="invoices" />} />
           <Route path="payments" element={<VendorPlaceholderRoute sectionKey="payments" />} />
           <Route path="refunds" element={<VendorPlaceholderRoute sectionKey="refunds" />} />
           <Route path="shipping" element={<VendorPlaceholderRoute sectionKey="shipping" />} />
         </Route>
 
-        {/* Reserved for next session's build - not wired to any real UI yet. */}
-        <Route path="/admin/*" element={<AdminConsolePlaceholder />} />
+        <Route
+          path="/admin"
+          element={
+            <RequireAdminAuth>
+              <AdminConsoleShell />
+            </RequireAdminAuth>
+          }
+        >
+          <Route index element={<AdminHomeRoute />} />
+          <Route path="kyc" element={<AdminKycRoute />} />
+          <Route path="disputes" element={<AdminDisputesRoute />} />
+          <Route path="tax" element={<AdminTaxRoute />} />
+        </Route>
 
         {/* Storefront root doesn't exist yet - redirect to the only real surface for now. */}
         <Route path="/" element={<Navigate to="/vendor" replace />} />
