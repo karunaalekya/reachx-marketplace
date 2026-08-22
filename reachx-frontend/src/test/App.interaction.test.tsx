@@ -69,6 +69,12 @@ async function loginThroughRealForm() {
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
+  // Session 3 gave "/" to the real storefront (StorefrontShell), so unauthenticated root no
+  // longer renders the login form the way it did pre-storefront. These tests exercise the
+  // vendor/admin login flow specifically, so they navigate to the real entry point for that
+  // flow (/login) rather than relying on "/" - matches how a vendor actually reaches this
+  // screen in production (bookmarked/linked /login URL, not the storefront root).
+  window.history.pushState({}, "", "/login");
   // Any console.error during render/effects is treated as a real failure below - this is what
   // actually catches "React mounted but threw/warned" rather than just "the build compiled".
   consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -86,7 +92,7 @@ afterEach(() => {
 describe("Login gate - real form, real store, mocked fetch boundary", () => {
   it("renders the login form when no session exists, and does not call the KYC/account-health endpoints yet", () => {
     render(<App />);
-    expect(screen.getByText("Vendor sign in")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 
@@ -105,7 +111,7 @@ describe("Login gate - real form, real store, mocked fetch boundary", () => {
     await loginThroughRealForm();
 
     expect(await screen.findByText("Invalid email or password")).toBeInTheDocument();
-    expect(screen.getByText("Vendor sign in")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     expect(consoleErrorSpy).not.toHaveBeenCalled();
   });
 

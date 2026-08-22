@@ -49,13 +49,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: "payouts", label: "Payouts", icon: Wallet, built: true, sessionNote: "" },
   { key: "tax", label: "Tax", icon: Receipt, built: true, sessionNote: "" },
   { key: "orders", label: "Orders", icon: Package, built: true, sessionNote: "" },
-  {
-    key: "catalogue",
-    label: "Catalogue",
-    icon: Boxes,
-    built: false,
-    sessionNote: "Product CRUD and stock management - backend ProductController is live and untouched by any frontend UI yet. Next session's #1 priority per the storefront/catalogue build plan.",
-  },
+  { key: "catalogue", label: "Catalogue", icon: Boxes, built: true, sessionNote: "" },
   {
     key: "invoices",
     label: "Invoices",

@@ -7,30 +7,56 @@ import { VendorKycRoute } from "./vendor/routes/VendorKycRoute";
 import { VendorPayoutsRoute } from "./vendor/routes/VendorPayoutsRoute";
 import { VendorOrdersRoute } from "./vendor/routes/VendorOrdersRoute";
 import { VendorDisputesRoute } from "./vendor/routes/VendorDisputesRoute";
+import { VendorProductsRoute } from "./vendor/routes/VendorProductsRoute";
 import { VendorPlaceholderRoute } from "./vendor/routes/VendorPlaceholderRoute";
-import { AdminConsolePlaceholder } from "./admin/AdminConsolePlaceholder";
+import { AdminConsoleShell } from "./admin/layouts/AdminConsoleShell";
+import { AdminKycRoute } from "./admin/routes/AdminKycRoute";
+import { AdminDisputesRoute } from "./admin/routes/AdminDisputesRoute";
+import { AdminVendorsRoute } from "./admin/routes/AdminVendorsRoute";
+import { AdminVendorDetailRoute } from "./admin/routes/AdminVendorDetailRoute";
+import { AdminPayoutsRoute } from "./admin/routes/AdminPayoutsRoute";
+import { AdminTaxRoute } from "./admin/routes/AdminTaxRoute";
+import { StorefrontShell } from "./storefront/layouts/StorefrontShell";
+import { ProductBrowseRoute } from "./storefront/routes/ProductBrowseRoute";
+import { ProductDetailRoute } from "./storefront/routes/ProductDetailRoute";
+import { CartRoute } from "./storefront/routes/CartRoute";
+import { CheckoutFormRoute } from "./storefront/routes/CheckoutFormRoute";
+import { TrackOrderPlaceholderRoute } from "./storefront/routes/TrackOrderPlaceholderRoute";
 
-// Real routing added this session, replacing the earlier state-based `activeSection` approach in
-// VendorDashboardShell. That approach was a deliberate, documented choice at the time (see git
-// history on this comment block) made because no storefront/admin route tree existed yet to
-// justify the dependency. Both now do (or are about to, per ROADMAP.md session plan), so the
-// original reason for deferring no longer holds - flagged then, addressed now, not silently
-// added.
-//
-// Route shape:
-//   /login              - public, redirects to /vendor if already authenticated
-//   /vendor/*            - protected (RequireVendorAuth below), nested routes render inside
-//                          VendorDashboardShell's <Outlet/> - deep-linkable now (e.g. /vendor/kyc
-//                          survives a refresh/back-button, which the old useState never could)
-//   /admin/*             - reserved, placeholder only - real admin console UI is next session's
-//                          work per ROADMAP.md; this route exists now so that build doesn't need
-//                          another routing migration on top of its own scope
-//   /                    - redirects to /vendor for now; becomes the storefront root once that's
-//                          built (not yet - see FRONTEND_STATE.md, storefront not started)
+// Route shape (final merge - S8 vendor/catalogue + Track B real admin console + Track C
+// storefront sessions 1-3 assembled together, each superseding the last: session1 stub ->
+// session2 real cart -> session3 real checkout/Razorpay):
+//   /login              - public, shared by vendor and admin logins, redirects by real `role`
+//                          from the login response if already authenticated
+//   /vendor/*            - protected to role === "VENDOR" (RequireVendorAuth below); a logged-in
+//                          ADMIN hitting this directly is redirected to their own console.
+//   /admin/*             - protected to role === "ADMIN" (RequireAdminAuth below). Every module
+//                          real: kyc, disputes, vendors (+ vendors/:vendorId), payouts, tax.
+//   /                    - storefront root (public, no auth wrapper - guest-only checkout by
+//                          backend design), product grid
+//   /product/:id         - product detail page
+//   /cart                - real cart
+//   /checkout            - real checkout: POST /orders, POST /payments/orders/{id}/initiate
+//                          (Razorpay), processing/success/fail phases
+//   /track-order         - still a placeholder; guest order lookup/tracking is future work
 function RequireVendorAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
+  const role = useAuthStore((s) => s.role);
   if (!token || userId === null) {
+    return <Navigate to="/login" replace />;
+  }
+  if (role !== "VENDOR") {
+    return <Navigate to="/admin" replace />;
+  }
+  return <>{children}</>;
+}
+
+function RequireAdminAuth({ children }: { children: React.ReactNode }) {
+  const token = useAuthStore((s) => s.token);
+  const userId = useAuthStore((s) => s.userId);
+  const role = useAuthStore((s) => s.role);
+  if (!token || userId === null || role !== "ADMIN") {
     return <Navigate to="/login" replace />;
   }
   return <>{children}</>;
@@ -39,8 +65,9 @@ function RequireVendorAuth({ children }: { children: React.ReactNode }) {
 function LoginRoute() {
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
+  const role = useAuthStore((s) => s.role);
   if (token && userId !== null) {
-    return <Navigate to="/vendor" replace />;
+    return <Navigate to={role === "ADMIN" ? "/admin" : "/vendor"} replace />;
   }
   return (
     <div className="min-h-screen bg-surface-dashboard flex items-center justify-center p-8">
@@ -69,19 +96,40 @@ export default function App() {
           <Route path="tax" element={<VendorPayoutsRoute />} />
           <Route path="orders" element={<VendorOrdersRoute />} />
           <Route path="disputes" element={<VendorDisputesRoute />} />
-          <Route path="catalogue" element={<VendorPlaceholderRoute sectionKey="catalogue" />} />
+          <Route path="catalogue" element={<VendorProductsRoute />} />
           <Route path="invoices" element={<VendorPlaceholderRoute sectionKey="invoices" />} />
           <Route path="payments" element={<VendorPlaceholderRoute sectionKey="payments" />} />
           <Route path="refunds" element={<VendorPlaceholderRoute sectionKey="refunds" />} />
           <Route path="shipping" element={<VendorPlaceholderRoute sectionKey="shipping" />} />
         </Route>
 
-        {/* Reserved for next session's build - not wired to any real UI yet. */}
-        <Route path="/admin/*" element={<AdminConsolePlaceholder />} />
+        <Route
+          path="/admin"
+          element={
+            <RequireAdminAuth>
+              <AdminConsoleShell />
+            </RequireAdminAuth>
+          }
+        >
+          <Route index element={<Navigate to="kyc" replace />} />
+          <Route path="kyc" element={<AdminKycRoute />} />
+          <Route path="disputes" element={<AdminDisputesRoute />} />
+          <Route path="vendors" element={<AdminVendorsRoute />} />
+          <Route path="vendors/:vendorId" element={<AdminVendorDetailRoute />} />
+          <Route path="payouts" element={<AdminPayoutsRoute />} />
+          <Route path="tax" element={<AdminTaxRoute />} />
+        </Route>
 
-        {/* Storefront root doesn't exist yet - redirect to the only real surface for now. */}
-        <Route path="/" element={<Navigate to="/vendor" replace />} />
-        <Route path="*" element={<Navigate to="/vendor" replace />} />
+        {/* Storefront - public, no auth wrapper at all (guest-only checkout by backend design). */}
+        <Route path="/" element={<StorefrontShell />}>
+          <Route index element={<ProductBrowseRoute />} />
+          <Route path="product/:id" element={<ProductDetailRoute />} />
+          <Route path="cart" element={<CartRoute />} />
+          <Route path="checkout" element={<CheckoutFormRoute />} />
+          <Route path="track-order" element={<TrackOrderPlaceholderRoute />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

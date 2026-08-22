@@ -137,6 +137,28 @@ export async function getTaxWithholding(
   return unwrap<TaxWithholdingTotals>(res);
 }
 
+// ADMIN-only: GET /tax-withholding/vendor/{vendorId}/{financialYear} - confirmed to exist per
+// Session 3's note ("only the FY-aggregate /mine/{fy} is vendor-scoped" implies the admin
+// equivalent takes a vendorId), but this session could not clone the backend repo (no network
+// access in this sandbox) to read TaxWithholdingController directly the way Session 3 did for
+// the vendor-facing endpoint. The path shape below mirrors /tax-withholding/mine/{fy} with
+// {vendorId} substituted for "mine", and the response shape is assumed identical
+// (TaxWithholdingTotals) since both are described as returning the same tcs/tds aggregate for a
+// given FY, just scoped to a different vendor. Flagging this the same way this project flags
+// every other unconfirmed shape: reported, not verified against source this session - confirm
+// against TaxWithholdingController before trusting this in front of a client.
+export async function getVendorTaxWithholding(
+  vendorId: number,
+  financialYear: string,
+  token: string
+): Promise<TaxWithholdingTotals> {
+  const res = await fetch(
+    `${API_BASE}/tax-withholding/vendor/${vendorId}/${financialYear}`,
+    { headers: authHeaders(token) }
+  );
+  return unwrap<TaxWithholdingTotals>(res);
+}
+
 // Apr1-Mar31 Indian FY convention, mirrors the backend's own currentFinancialYear() exactly so
 // the default FY the ledger opens on always matches what the backend would compute as "current" -
 // not reimplemented differently or guessed.
