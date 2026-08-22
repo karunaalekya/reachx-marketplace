@@ -69,6 +69,12 @@ async function loginThroughRealForm() {
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
+  // Session 3 gave "/" to the real storefront (StorefrontShell), so unauthenticated root no
+  // longer renders the login form the way it did pre-storefront. These tests exercise the
+  // vendor/admin login flow specifically, so they navigate to the real entry point for that
+  // flow (/login) rather than relying on "/" - matches how a vendor actually reaches this
+  // screen in production (bookmarked/linked /login URL, not the storefront root).
+  window.history.pushState({}, "", "/login");
   // Any console.error during render/effects is treated as a real failure below - this is what
   // actually catches "React mounted but threw/warned" rather than just "the build compiled".
   consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});

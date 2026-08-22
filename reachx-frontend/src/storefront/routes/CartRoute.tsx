@@ -46,7 +46,18 @@ export function CartRoute() {
             <header className="flex items-center justify-between border-b border-brand-indigo/10 bg-surface-cardMuted px-4 py-2.5">
               <p className="text-xs font-semibold text-slate-500">Seller #{group.vendorId}</p>
               <p className="text-xs font-semibold text-slate-500">
-                Subtotal: <span className="text-brand-indigo">{formatCurrency(group.subtotal)}</span>
+                Subtotal:{" "}
+                <span
+                  className="text-brand-indigo"
+                  // A vendor group with exactly one line item has its per-line total (below,
+                  // in the item row) coincidentally equal to this vendor subtotal - both render
+                  // the same formatted currency string in that case, so a plain text query
+                  // can't tell them apart. data-testid disambiguates without changing what's
+                  // shown on screen.
+                  data-testid={`vendor-subtotal-${group.vendorId}`}
+                >
+                  {formatCurrency(group.subtotal)}
+                </span>
               </p>
             </header>
 

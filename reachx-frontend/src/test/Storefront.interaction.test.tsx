@@ -56,21 +56,12 @@ const SAMPLE_PRODUCT = {
   imageUrls: ["https://example.com/saree.jpg"],
 };
 
-// Second vendor's product, for the multi-vendor cart-grouping tests below.
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-const OTHER_VENDOR_PRODUCT = {
-  id: 88,
-  vendorId: 19,
-  categoryId: null,
-  name: "Terracotta Table Lamp",
-  description: "Hand-finished terracotta base.",
-  price: 899,
-  stockQuantity: 3,
-  sku: "LAMP-88",
-  status: "ACTIVE",
-  createdAt: new Date().toISOString(),
-  imageUrls: ["https://example.com/lamp.jpg"],
-};
+// A prior pass had an unused OTHER_VENDOR_PRODUCT fixture here for the multi-vendor
+// cart-grouping test - the eslint-disable comment silenced the linter but not tsc's real
+// noUnusedLocals check (which `npm run build`/`tsc -b --noEmit` both enforce), so it still
+// failed the actual build. That test constructs its two-vendor cart from inline item literals
+// instead (see "groups a multi-vendor cart into separate per-vendor sections" below), so the
+// fixture was genuinely dead code - removed rather than re-suppressed.
 
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
@@ -241,8 +232,11 @@ describe("Cart page - real tree, no fetch involved (100% local state)", () => {
     expect(await screen.findByText("Seller #7")).toBeInTheDocument();
     expect(screen.getByText("Seller #19")).toBeInTheDocument();
     // Vendor #7's subtotal: 1499 * 2 = 2998. Vendor #19's: 899 * 1 = 899. Cart subtotal: 3897.
-    expect(screen.getByText(/₹2,998/)).toBeInTheDocument();
-    expect(screen.getByText(/₹899/)).toBeInTheDocument();
+    // Vendor #7 has a single line item, so its per-line total (₹2,998) coincidentally matches
+    // its vendor subtotal too - query the vendor-subtotal testid specifically rather than plain
+    // text so this doesn't collide with that line item's own total.
+    expect(screen.getByTestId("vendor-subtotal-7")).toHaveTextContent("₹2,998");
+    expect(screen.getByTestId("vendor-subtotal-19")).toHaveTextContent("₹899");
     expect(screen.getByText(/₹3,897/)).toBeInTheDocument();
     expect(screen.getByText("Tax and shipping calculated at checkout.")).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
@@ -264,7 +258,7 @@ describe("Cart page - real tree, no fetch involved (100% local state)", () => {
   });
 });
 
-describe("Checkout form - real tree, not wired to the backend yet", () => {
+describe("Checkout form - validation and empty-cart guard", () => {
   it("redirects to /cart when checkout is visited with an empty cart", async () => {
     window.history.pushState({}, "", "/checkout");
     mockFetchSequence([]);
@@ -295,30 +289,12 @@ describe("Checkout form - real tree, not wired to the backend yet", () => {
     expect(screen.getByText("Select your state.")).toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalled();
   });
-
-  it("shows the honest 'not wired yet' toast on a valid submit, with no network call made", async () => {
-    useCartStore.setState({
-      items: [{ productId: 42, name: "Handwoven Cotton Saree", price: 1499, quantity: 1, vendorId: 7, imageUrl: null }],
-    });
-    window.history.pushState({}, "", "/checkout");
-    mockFetchSequence([]);
-
-    render(<App />);
-    await screen.findByText("Checkout");
-
-    fireEvent.change(screen.getByLabelText("Email"), { target: { value: "guest@example.com" } });
-    fireEvent.change(screen.getByLabelText("Phone"), { target: { value: "9876543210" } });
-    fireEvent.change(screen.getByLabelText("Shipping address"), {
-      target: { value: "123 MG Road, Bengaluru, 560001" },
-    });
-    fireEvent.change(screen.getByLabelText("State"), { target: { value: "Karnataka" } });
-    fireEvent.click(screen.getByRole("button", { name: "Continue to Payment" }));
-
-    expect(await screen.findByText("Checkout isn't wired up yet")).toBeInTheDocument();
-    expect(fetch).not.toHaveBeenCalled();
-    // Cart is untouched - no order was actually placed.
-    expect(useCartStore.getState().items).toHaveLength(1);
-  });
+  // The former third test here ("shows the honest 'not wired yet' toast on a valid submit")
+  // asserted session 2's stub behavior - no fetch call, a "Checkout isn't wired up yet" toast.
+  // Session 3 (below) replaced CheckoutFormRoute's submit handler with the real
+  // createOrder/initiatePayment flow, so that expectation now contradicts the component's
+  // actual (and intended) behavior. Removed rather than fixed - the real submit path is
+  // covered by the "Session 3 - real order creation + Razorpay wiring" describe block below.
 });
 
 // --- Session 3 (C3 completion) - real order creation + Razorpay wiring ---
@@ -436,7 +412,12 @@ describe("Checkout - Session 3, order creation + Razorpay wiring", () => {
     // Cart is cleared immediately on the callback, before the honest processing pause resolves.
     expect(useCartStore.getState().items).toHaveLength(0);
     expect(await screen.findByText("Processing payment")).toBeInTheDocument();
-    expect(await screen.findByText("Order placed")).toBeInTheDocument();
+    // CheckoutFormRoute's success transition is a deliberate 1200ms real setTimeout (the
+    // "honest processing pause" - not a real backend wait, but not instant either). RTL's
+    // findByText default timeout is 1000ms, so without raising it here the query times out
+    // ~200ms before the component ever calls setPhase("success") - a genuine race between the
+    // test default and the component's real delay, not a stale assertion.
+    expect(await screen.findByText("Order placed", {}, { timeout: 2000 })).toBeInTheDocument();
     expect(screen.getByText("501")).toBeInTheDocument();
     expect(screen.getByText("RX-2026-000501")).toBeInTheDocument();
     expect(fetch).toHaveBeenCalledTimes(2);

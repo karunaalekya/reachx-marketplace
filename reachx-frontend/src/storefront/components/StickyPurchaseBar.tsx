@@ -22,6 +22,13 @@ export function StickyPurchaseBar({ price, outOfStock, onAddToCart }: StickyPurc
         type="button"
         onClick={onAddToCart}
         disabled={outOfStock}
+        // Distinct accessible name from the desktop button in ProductDetailRoute (same visible
+        // text, "Add to Cart") - jsdom in tests doesn't evaluate the sm:hidden/sm:flex media
+        // query that keeps only one of the two actually visible in a real browser, so without
+        // this the two buttons are indistinguishable to getByRole and any query for "Add to
+        // Cart" throws a multiple-elements error. Screen readers see the more specific label;
+        // sighted users see the same "Add to Cart" text either way.
+        aria-label={outOfStock ? "Out of stock" : "Add to Cart (sticky bar)"}
         className="min-h-[44px] flex-1 max-w-[220px] rounded-md bg-brand-saffron px-4 text-sm font-bold text-white transition
           hover:bg-brand-saffron/90 disabled:cursor-not-allowed disabled:opacity-40
           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-brand-saffron"

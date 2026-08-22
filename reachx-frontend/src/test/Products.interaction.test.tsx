@@ -75,6 +75,10 @@ const SAMPLE_PRODUCT = {
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
+  // "/" now belongs to the real storefront (StorefrontShell) - navigate to the real vendor
+  // entry point so the login form these tests drive is actually what mounts. See the matching
+  // comment in App.interaction.test.tsx.
+  window.history.pushState({}, "", "/login");
   consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
