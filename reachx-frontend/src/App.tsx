@@ -16,23 +16,29 @@ import { AdminVendorsRoute } from "./admin/routes/AdminVendorsRoute";
 import { AdminVendorDetailRoute } from "./admin/routes/AdminVendorDetailRoute";
 import { AdminPayoutsRoute } from "./admin/routes/AdminPayoutsRoute";
 import { AdminTaxRoute } from "./admin/routes/AdminTaxRoute";
+import { StorefrontShell } from "./storefront/layouts/StorefrontShell";
+import { ProductBrowseRoute } from "./storefront/routes/ProductBrowseRoute";
+import { ProductDetailRoute } from "./storefront/routes/ProductDetailRoute";
+import { CartRoute } from "./storefront/routes/CartRoute";
+import { CheckoutFormRoute } from "./storefront/routes/CheckoutFormRoute";
+import { TrackOrderPlaceholderRoute } from "./storefront/routes/TrackOrderPlaceholderRoute";
 
-// Route shape (this build = S8 vendor/catalogue work + Track B's full real admin console,
-// merged together). Storefront (Track C) is deliberately NOT wired in yet - the session3 zip
-// only contains checkout-flow files (CheckoutFormRoute, payments/orders API, Razorpay loader)
-// and assumes StorefrontShell/ProductBrowseRoute/ProductDetailRoute/CartRoute/
-// TrackOrderPlaceholderRoute/useCartStore/useProductBrowseStore/formatCurrency/indianStates
-// already exist from Track C sessions 1-2, which haven't been provided. Once those are
-// available, re-merge to add the storefront route tree back in (see merged-App.tsx from the
-// prior pass for the intended shape) instead of hand-patching this file.
+// Route shape (final merge - S8 vendor/catalogue + Track B real admin console + Track C
+// storefront sessions 1-3 assembled together, each superseding the last: session1 stub ->
+// session2 real cart -> session3 real checkout/Razorpay):
 //   /login              - public, shared by vendor and admin logins, redirects by real `role`
 //                          from the login response if already authenticated
 //   /vendor/*            - protected to role === "VENDOR" (RequireVendorAuth below); a logged-in
 //                          ADMIN hitting this directly is redirected to their own console.
 //   /admin/*             - protected to role === "ADMIN" (RequireAdminAuth below). Every module
 //                          real: kyc, disputes, vendors (+ vendors/:vendorId), payouts, tax.
-//   /                    - temporary: redirects to /vendor, same as pre-merge behavior, until
-//                          the real storefront root replaces this.
+//   /                    - storefront root (public, no auth wrapper - guest-only checkout by
+//                          backend design), product grid
+//   /product/:id         - product detail page
+//   /cart                - real cart
+//   /checkout            - real checkout: POST /orders, POST /payments/orders/{id}/initiate
+//                          (Razorpay), processing/success/fail phases
+//   /track-order         - still a placeholder; guest order lookup/tracking is future work
 function RequireVendorAuth({ children }: { children: React.ReactNode }) {
   const token = useAuthStore((s) => s.token);
   const userId = useAuthStore((s) => s.userId);
@@ -108,17 +114,22 @@ export default function App() {
           <Route index element={<Navigate to="kyc" replace />} />
           <Route path="kyc" element={<AdminKycRoute />} />
           <Route path="disputes" element={<AdminDisputesRoute />} />
-          {/* No GET /vendors list-all endpoint is confirmed, so "vendors" is a by-id lookup
-              screen, not a browsable table - see AdminVendorLookupPanel's own comment. */}
           <Route path="vendors" element={<AdminVendorsRoute />} />
           <Route path="vendors/:vendorId" element={<AdminVendorDetailRoute />} />
           <Route path="payouts" element={<AdminPayoutsRoute />} />
           <Route path="tax" element={<AdminTaxRoute />} />
         </Route>
 
-        {/* Storefront not wired yet - see note above. Falls back to /vendor for now. */}
-        <Route path="/" element={<Navigate to="/vendor" replace />} />
-        <Route path="*" element={<Navigate to="/vendor" replace />} />
+        {/* Storefront - public, no auth wrapper at all (guest-only checkout by backend design). */}
+        <Route path="/" element={<StorefrontShell />}>
+          <Route index element={<ProductBrowseRoute />} />
+          <Route path="product/:id" element={<ProductDetailRoute />} />
+          <Route path="cart" element={<CartRoute />} />
+          <Route path="checkout" element={<CheckoutFormRoute />} />
+          <Route path="track-order" element={<TrackOrderPlaceholderRoute />} />
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

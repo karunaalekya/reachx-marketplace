@@ -57,6 +57,7 @@ const SAMPLE_PRODUCT = {
 };
 
 // Second vendor's product, for the multi-vendor cart-grouping tests below.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const OTHER_VENDOR_PRODUCT = {
   id: 88,
   vendorId: 19,
